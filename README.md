@@ -20,3 +20,7 @@ For those times when you need to transfer a pile o' files across a network as fa
 - Resume on network failures
 - Resume after app crashes
 - Documented examples
+- Display improvements
+  - Speed
+  - Current File
+  - Progress
