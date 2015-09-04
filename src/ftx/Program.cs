@@ -37,7 +37,7 @@ namespace ftx
             {
                 using (var client = listener.AcceptTcpClient())
                 using (var netStream = client.GetStream())
-                using (var compStream = options.Compress ? new DeflateStream(netStream, CompressionLevel.Fastest) : null)
+                using (var compStream = options.Compression.HasValue ? new DeflateStream(netStream, options.Compression.Value) : null)
                 using (var aes = CreateAes(options))
                 using (var encryptor = aes != null ? aes.CreateEncryptor() : null)
                 using (var cryptoStream = aes != null ? new CryptoStream((Stream)compStream ?? netStream, encryptor, CryptoStreamMode.Write) : null)
@@ -104,7 +104,7 @@ namespace ftx
         {
             using (var client = new TcpClient(options.EndPoint.Host, options.EndPoint.Port))
             using (var netStream = client.GetStream())
-            using (var compStream = options.Compress ? new DeflateStream(netStream, CompressionMode.Decompress) : null)
+            using (var compStream = options.Compression.HasValue ? new DeflateStream(netStream, CompressionMode.Decompress) : null)
             using (var aes = CreateAes(options))
             using (var decryptor = aes != null ? aes.CreateDecryptor() : null)
             using (var cryptoStream = aes != null ? new CryptoStream((Stream)compStream ?? netStream, decryptor, CryptoStreamMode.Read) : null)

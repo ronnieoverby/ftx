@@ -1,8 +1,10 @@
 ﻿using System;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
+using CoreTechs.Common;
 
 namespace ftx
 {
@@ -11,7 +13,7 @@ namespace ftx
         public ProgramMode ProgramMode { get; set; }
         public DirectoryInfo Directory { get; set; }
         public DnsEndPoint EndPoint { get; set; }
-        public bool Compress { get; set; }
+        public CompressionLevel? Compression { get; set; }
         public string EncryptionPassword { get; set; }
 
         public static ProgramOptions FromArgs(string[] args)
@@ -21,8 +23,16 @@ namespace ftx
                 ProgramMode = Parse(args, "mode", x => ParseEnum<ProgramMode>(x[1])),
                 Directory = Parse(args, "path", x => new DirectoryInfo(x[1])),
                 EndPoint = new DnsEndPoint(Parse(args, "host", x => x[1]), Parse(args, "port", x => int.Parse(x[1]))),
-                Compress = Parse(args, "compress", x => x.Any()),
-                EncryptionPassword = Parse(args, "encrypt", x => x.Any() ? x[1] : null),
+                Compression = Parse(args, "compression", x =>
+                {
+                    if (!x.Any()) return (CompressionLevel?) null;
+
+                    var level = x.ElementAtOrDefault(1);
+                    return level.IsNullOrEmpty()
+                        ? CompressionLevel.Fastest
+                        : ParseEnum<CompressionLevel>(level);
+                }),
+                EncryptionPassword = Parse(args, "password", x => x.Any() ? x[1] : null),
             };
         }
 
@@ -42,13 +52,12 @@ namespace ftx
 
             var values = args.Skip(i);
 
-            var z = Array.FindIndex(args, i + 1, s => Regex.IsMatch(s, @"^[/-]"));
+            var z = Array.FindIndex(args, i + 1, s => Regex.IsMatch(s, @"^[/-]", RegexOptions.IgnoreCase));
 
             if (z != -1)
             {
                 values = values.Take(z-i);
             }
-
 
             try
             {
