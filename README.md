@@ -1,6 +1,9 @@
 # ftx
 A file server/client.
 
+## Why?
+For those times when you need to transfer a pile o' files across a network as fast as possible.
+
 ## Arguments
 
 | Name  | Value(s)  | Descripton |
@@ -11,3 +14,9 @@ A file server/client.
 | port      | 12345        |  
 | compression  | Fastest \| Optimal | Value is not needed on client side.
 | password  | Uncr@ckable | Enables AES 256-bit encryption.
+
+
+## Todo
+- Resume on network failures
+- Resume after app crashes
+- Documented examples
