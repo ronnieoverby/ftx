@@ -19,31 +19,32 @@ namespace ftx
 
         public static ProgramOptions FromArgs(string[] args)
         {
-            return new ProgramOptions
+            var options = new ProgramOptions();
+            options.ProgramMode = Parse(args, "mode", x => ParseEnum<ProgramMode>(x[1]));
+            options.Directory = Parse(args, "path", x => new DirectoryInfo(x[1]));
+            options.Host = Parse(args, "host", x =>
             {
-                ProgramMode = Parse(args, "mode", x => ParseEnum<ProgramMode>(x[1])),
-                Directory = Parse(args, "path", x => new DirectoryInfo(x[1])),
-                Host = Parse(args, "host", x =>
-                {
-                    var value = x.ElementAtOrDefault(1);
-                    return value == null ? IPAddress.Any : Dns.GetHostAddresses(value).RandomElement();
-                }),
-                Port = Parse(args,"port", x =>
-                {
-                    var value = x.ElementAtOrDefault(1);
-                    return value != null ? int.Parse(value) : 0;
-                }),
-                Compression = Parse(args, "compression", x =>
-                {
-                    if (!x.Any()) return (CompressionLevel?)null;
+                var value = x.ElementAtOrDefault(1);
+                return value == null
+                    ? (options.ProgramMode == ProgramMode.Server ? IPAddress.Any : IPAddress.Loopback)
+                    : Dns.GetHostAddresses(value)[0];
+            });
+            options.Port = Parse(args,"port", x =>
+            {
+                var value = x.ElementAtOrDefault(1);
+                return value != null ? int.Parse(value) : 0;
+            });
+            options.Compression = Parse(args, "compression", x =>
+            {
+                if (!x.Any()) return (CompressionLevel?)null;
 
-                    var level = x.ElementAtOrDefault(1);
-                    return level.IsNullOrEmpty()
-                        ? CompressionLevel.Fastest
-                        : ParseEnum<CompressionLevel>(level);
-                }),
-                EncryptionPassword = Parse(args, "password", x => x.Any() ? x[1] : null),
-            };
+                var level = x.ElementAtOrDefault(1);
+                return level.IsNullOrEmpty()
+                    ? CompressionLevel.Fastest
+                    : ParseEnum<CompressionLevel>(level);
+            });
+            options.EncryptionPassword = Parse(args, "password", x => x.Any() ? x[1] : null);
+            return options;
         }
 
 
@@ -54,7 +55,7 @@ namespace ftx
 
         private static T Parse<T>(string[] args, string token, Func<string[], T> func)
         {
-            var pattern = string.Format(@"^[/-]{0}", Regex.Escape(token));
+            var pattern = $@"^[/-]{Regex.Escape(token)}";
             var i = Array.FindIndex(args, s => Regex.IsMatch(s, pattern));
 
             if (i == -1)

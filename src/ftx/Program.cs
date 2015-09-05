@@ -1,8 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.IO.Compression;
-using System.Linq;
-using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using CoreTechs.Common;
@@ -108,7 +106,7 @@ namespace ftx
 
         private static void RunClient(ProgramOptions options)
         {
-            using (var client = new TcpClient(new IPEndPoint(options.Host,options.Port)))
+            using (var client = new TcpClient().Do(c => c.Connect(options.Host, options.Port)))
             using (var netStream = client.GetStream())
             using (var compStream = options.Compression.HasValue ? new DeflateStream(netStream, CompressionMode.Decompress) : null)
             using (var aes = CreateAes(options))
@@ -121,7 +119,15 @@ namespace ftx
 
                 while (true)
                 {
-                    var path = reader.ReadString();
+                    string path;
+                    try
+                    {
+                        path = reader.ReadString();
+                    }
+                    catch (EndOfStreamException)
+                    {
+                        break;
+                    }
                     Console.WriteLine(path);
 
                     var length = reader.ReadInt64();
