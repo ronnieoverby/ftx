@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using CoreTechs.Common;
 using Humanizer;
-using Humanizer.Bytes;
 using Humanizer.Localisation;
 using static System.Console;
 using ByteSize = Humanizer.Bytes.ByteSize;
@@ -58,13 +57,14 @@ namespace ftx
 
             Clear();
 
-            WriteLine($"Path: {Options.Directory.FullName}");
+            WriteLine($"Mode:        {Options.ProgramMode}");
+            WriteLine($"Path:        {Options.Directory.FullName}");
             WriteLine($"Compression: {Options.Compression?.ToString() ?? "Off"}");
-            WriteLine($"Encryption: {(Options.EncryptionPassword.IsNullOrEmpty() ? "Off" : "On")}");
-            WriteLine($"Time: {Stopwatch.Elapsed.Humanize(minUnit: TimeUnit.Second)}");
-            WriteLine($"Bytes: {ByteCount.Bytes().Humanize("#.##")}");
-            WriteLine($"Files: {FileCount:N0}");
-            WriteLine($"Speed: {BytesPerSecond.Humanize("#.##")}/s");
+            WriteLine($"Encryption:  {(Options.EncryptionPassword.IsNullOrEmpty() ? "Off" : "On")}");
+            WriteLine($"Files:       {FileCount:N0}");
+            WriteLine($"Transferred: {ByteCount.Bytes().Humanize("#.###")}");
+            WriteLine($"Time:        {Stopwatch.Elapsed.Humanize(minUnit: TimeUnit.Second)}");
+            WriteLine($"Speed:       {BytesPerSecond.Humanize("#.##")}/s");
 
             if (CurrentFile != null)
             {
@@ -72,7 +72,8 @@ namespace ftx
                 WriteLine("Current File:");
                 WriteLine(CurrentFile.File);
 
-                WriteLine($"{CurrentFile.BytesTransferred:N0} / {CurrentFile.Length:N0} ({CurrentFile.PercentComplete:P})");
+                WriteLine(
+                    $"{CurrentFile.BytesTransferred.Bytes().Humanize("#.###")} / {CurrentFile.Length.Bytes().Humanize("#.###")} ({CurrentFile.PercentComplete:P})");
             }
 
             _lastRefresh = DateTimeOffset.Now;
