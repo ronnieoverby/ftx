@@ -31,10 +31,11 @@ namespace ftx
         {
             var listener = new TcpListener(options.Host, options.Port);
             listener.Start();
+            int port = ((dynamic)listener.LocalEndpoint).Port;
 
             try
             {
-                Console.WriteLine($"Listening on port {options.Port}.");
+                Console.WriteLine($"Listening on port {port}.");
 
                 using (var client = listener.AcceptTcpClient())
                 using (var netStream = client.GetStream())

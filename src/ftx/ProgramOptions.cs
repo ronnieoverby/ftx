@@ -49,7 +49,7 @@ namespace ftx
 
         private static T ParseEnum<T>(string s)
         {
-            return (T)Enum.Parse(typeof(T), s);
+            return (T) Enum.Parse(typeof (T), s, true);
         }
 
         private static T Parse<T>(string[] args, string token, Func<string[], T> func)
