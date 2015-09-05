@@ -24,8 +24,17 @@ For those times when you need to transfer a pile o' files across a network easil
 
 `ftx -mode client -path d:\destination -host myserver -port 12345`
 
+### Compression
 
+`ftx -mode server -path c:\source -port 12345 -compression optimal`
+
+`ftx -mode client -path d:\destination -host myserver -port 12345 -compression`
+
+### Encryption
+
+`ftx -mode server -path c:\source -port 12345 -password "correct horse battery staple"`
+
+`ftx -mode client -path d:\destination -host myserver -port 12345 -password "correct horse battery staple"`
 
 ## Todo
 - Resume
-- Documented examples
