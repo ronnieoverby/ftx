@@ -60,15 +60,26 @@ namespace ftx
             WriteLine($"Mode:        {Options.ProgramMode}");
             WriteLine($"Host/Port:   {Options.Host}:{Options.Port}");
             WriteLine($"Path:        {Options.Directory.FullName}");
-            WriteLine($"Compression: {Options.Compression?.ToString() ?? "Off"}");
-            WriteLine($"Encryption:  {(Options.EncryptionPassword.IsNullOrEmpty() ? "Off" : "On")}");
+
+            string compression;
+
+            if (Options.Compression == null)
+                compression = "Disabled";
+            else if (Options.ProgramMode == ProgramMode.Client)
+                compression = "Enabled";
+            else
+                compression = Options.Compression.ToString();
+
+            WriteLine($"Compression: {compression}");
+            WriteLine($"Encryption:  {(Options.EncryptionPassword.IsNullOrEmpty() ? "Disabled" : "Enabled")}");
 
             if (Options.ProgramMode == ProgramMode.Client)
-                WriteLine($"Overwrite:   {(Options.Overwrite ? "On" : "Off")}");
+                WriteLine($"Overwrite:   {(Options.Overwrite ? "Enabled" : "Disabled")}");
 
+            WriteLine();
             WriteLine($"Files:       {FileCount:N0}");
             WriteLine($"Transferred: {ByteCount.Bytes().Humanize("#.###")}");
-            WriteLine($"Time:        {Stopwatch.Elapsed.Humanize(minUnit: TimeUnit.Second)}");
+            WriteLine($"Time:        {Stopwatch.Elapsed.Humanize(100, minUnit: TimeUnit.Second)}");
             WriteLine($"Speed:       {BytesPerSecond.Humanize("#.##")}/s");
 
             if (CurrentFile != null)
