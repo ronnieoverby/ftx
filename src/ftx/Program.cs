@@ -27,31 +27,26 @@ namespace ftx
 
         private static void RunServer(ProgramOptions options)
         {
-            var display = new Display(options) { Delay = .5.Seconds() };
+            var display = new Display(options) {Delay = .5.Seconds()}.Do(x => x.Refresh());
             var listener = new TcpListener(options.Host, options.Port);
             listener.Start();
-            int port = ((dynamic)listener.LocalEndpoint).Port;
 
             try
             {
-                Console.WriteLine($"Listening on port {port}.");
 
                 var files = options.Directory.EnumerateFiles("*", SearchOption.AllDirectories);
-
                 var buffer = new byte[Extensions.DefaultStreamCopyBufferSize];
 
                 using (var it = files.GetEnumerator())
                 {
                     using (var client = listener.AcceptTcpClient())
                     using (var netStream = client.GetStream())
-                    using (
-                        var compStream = options.Compression.HasValue
+                    using (var compStream = options.Compression.HasValue
                             ? new DeflateStream(netStream, options.Compression.Value)
                             : null)
                     using (var aes = CreateAes(options))
                     using (var enc = aes?.CreateEncryptor())
-                    using (
-                        var cryptoStream = aes != null
+                    using (var cryptoStream = aes != null
                             ? new CryptoStream((Stream)compStream ?? netStream, enc, CryptoStreamMode.Write)
                             : null)
                     using (var writer = new BinaryWriter(cryptoStream ?? (Stream)compStream ?? netStream))
@@ -63,7 +58,6 @@ namespace ftx
                             display.CurrentFile = new FileProgress(
                                 file.GetRelativePathFrom(options.Directory),
                                 file.Length).Do(x => x.Stopwatch.Start());
-
                             var path = file.GetRelativePathFrom(options.Directory);
 
                             writer.Write(path);
@@ -79,11 +73,9 @@ namespace ftx
 
                             display.FileCount++;
                             display.Refresh();
-
                         }
                     }
                 }
-
             }
             finally
             {
@@ -110,6 +102,8 @@ namespace ftx
 
                 while (true)
                 {
+                    display.Refresh();
+
                     string path;
                     try
                     {
@@ -132,7 +126,10 @@ namespace ftx
                         display.Refresh();
                     };
 
-                    if (file.Exists && !options.Overwrite)
+                    var skipFile = (file.Exists && !options.Overwrite);
+                                   //|| options.ExcludedDirectories.Any(file.IsContainedWithin);
+
+                    if (skipFile)
                     {
                         reader.BaseStream.CopyTo(nullStream, length, buffer, progress);
                     }
@@ -146,7 +143,6 @@ namespace ftx
                     }
 
                     display.FileCount++;
-                    display.Refresh();
                 }
             }
         }

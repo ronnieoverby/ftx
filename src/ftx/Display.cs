@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using CoreTechs.Common;
 using Humanizer;
 using Humanizer.Localisation;
@@ -43,6 +44,10 @@ namespace ftx
             get
             {
                 var last = _byteStamps.Last;
+
+                if (last == null)
+                    return 0.Bytes();
+
                 var first = _byteStamps.First;
                 var span = last.Value.DateTime - first.Value.DateTime;
                 var count = last.Value.ByteCount - first.Value.ByteCount;
@@ -70,11 +75,20 @@ namespace ftx
             else
                 compression = Options.Compression.ToString();
 
+            
+
             WriteLine($"Compression: {compression}");
             WriteLine($"Encryption:  {(Options.EncryptionPassword.IsNullOrEmpty() ? "Disabled" : "Enabled")}");
 
             if (Options.ProgramMode == ProgramMode.Client)
                 WriteLine($"Overwrite:   {(Options.Overwrite ? "Enabled" : "Disabled")}");
+
+      /*      if (Options.ExcludedDirectories.Any())
+            {
+                WriteLine("Excluded Directories:");
+                foreach (var di in Options.ExcludedDirectories)
+                    WriteLine($"\t{di.FullName}");
+            }*/
 
             WriteLine();
             WriteLine($"Files:       {FileCount:N0}");

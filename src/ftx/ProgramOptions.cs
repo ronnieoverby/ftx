@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -46,6 +47,7 @@ namespace ftx
             });
             options.EncryptionPassword = Parse(args, "password", x => x.Any() ? x[1] : null);
             options.Overwrite = Parse(args, "overwrite", ParseBool);
+        
             return options;
         }
 

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace ftx
@@ -47,5 +48,21 @@ namespace ftx
         }
 
         public static TOut Get<TIn, TOut>(this TIn obj, Func<TIn, TOut> func) => func(obj);
+
+
+        public static string TrimDirSeps(this string path)
+        {
+            if (path == null) throw new ArgumentNullException(nameof(path));
+
+            return path.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        }
+
+        public static IEnumerable<DirectoryInfo> SelfAndAllSubDirectories(this DirectoryInfo di)
+        {
+            yield return di;
+            foreach (var sub in di.EnumerateDirectories("*", SearchOption.AllDirectories))
+                yield return sub;
+        }
     }
 }
