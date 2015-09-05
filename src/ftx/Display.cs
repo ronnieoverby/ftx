@@ -58,9 +58,14 @@ namespace ftx
             Clear();
 
             WriteLine($"Mode:        {Options.ProgramMode}");
+            WriteLine($"Host/Port:   {Options.Host}:{Options.Port}");
             WriteLine($"Path:        {Options.Directory.FullName}");
             WriteLine($"Compression: {Options.Compression?.ToString() ?? "Off"}");
             WriteLine($"Encryption:  {(Options.EncryptionPassword.IsNullOrEmpty() ? "Off" : "On")}");
+
+            if (Options.ProgramMode == ProgramMode.Client)
+                WriteLine($"Overwrite:   {(Options.Overwrite ? "On" : "Off")}");
+
             WriteLine($"Files:       {FileCount:N0}");
             WriteLine($"Transferred: {ByteCount.Bytes().Humanize("#.###")}");
             WriteLine($"Time:        {Stopwatch.Elapsed.Humanize(minUnit: TimeUnit.Second)}");
