@@ -1,6 +1,8 @@
 ﻿using System;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
+using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using CoreTechs.Common;
@@ -27,20 +29,19 @@ namespace ftx
 
         private static void RunServer(ProgramOptions options)
         {
-            var listener = new TcpListener(options.EndPoint.ToIpEndPoint());
-
+            var listener = new TcpListener(options.Host, options.Port);
             listener.Start();
-
-            Console.WriteLine("Waiting for connection.");
 
             try
             {
+                Console.WriteLine($"Listening on port {options.Port}.");
+
                 using (var client = listener.AcceptTcpClient())
                 using (var netStream = client.GetStream())
                 using (var compStream = options.Compression.HasValue ? new DeflateStream(netStream, options.Compression.Value) : null)
                 using (var aes = CreateAes(options))
-                using (var encryptor = aes != null ? aes.CreateEncryptor() : null)
-                using (var cryptoStream = aes != null ? new CryptoStream((Stream)compStream ?? netStream, encryptor, CryptoStreamMode.Write) : null)
+                using (var enc = aes?.CreateEncryptor())
+                using (var cryptoStream = aes != null ? new CryptoStream((Stream)compStream ?? netStream, enc, CryptoStreamMode.Write) : null)
                 using (var writer = new BinaryWriter(cryptoStream ?? (Stream)compStream ?? netStream))
                 {
                     Console.WriteLine("Connected.");
@@ -93,24 +94,28 @@ namespace ftx
 
             var salt = Convert.FromBase64String("38IxHAPayj+fEPTV6ON0AQ==");
             using (var kdf = new Rfc2898DeriveBytes(options.EncryptionPassword, salt))
-                return new AesCryptoServiceProvider
-                {
-                    Key = kdf.GetBytes(32),
-                    IV = Convert.FromBase64String("65BU4DLIBR2bGbhv8e16YQ==")
-                };
+            {
+                var aes = new AesCryptoServiceProvider();
+                var keyLength = aes.Key.Length;
+                var ivLength = aes.IV.Length;
+                var bytes = kdf.GetBytes(keyLength + ivLength);
+                aes.Key = bytes.SubArray(0, keyLength);
+                aes.IV = bytes.SubArray(keyLength, ivLength);
+                return aes;
+            }
         }
 
         private static void RunClient(ProgramOptions options)
         {
-            using (var client = new TcpClient(options.EndPoint.Host, options.EndPoint.Port))
+            using (var client = new TcpClient(new IPEndPoint(options.Host,options.Port)))
             using (var netStream = client.GetStream())
             using (var compStream = options.Compression.HasValue ? new DeflateStream(netStream, CompressionMode.Decompress) : null)
             using (var aes = CreateAes(options))
-            using (var decryptor = aes != null ? aes.CreateDecryptor() : null)
-            using (var cryptoStream = aes != null ? new CryptoStream((Stream)compStream ?? netStream, decryptor, CryptoStreamMode.Read) : null)
+            using (var dec = aes?.CreateDecryptor())
+            using (var cryptoStream = aes != null ? new CryptoStream((Stream)compStream ?? netStream, dec, CryptoStreamMode.Read) : null)
             using (var reader = new BinaryReader(cryptoStream ?? (Stream)compStream ?? netStream))
             {
-                const long bufferSize = 1024 * 1024 * 10;
+                const long bufferSize = 10485760;
                 var buffer = new byte[bufferSize];
 
                 while (true)
@@ -126,7 +131,7 @@ namespace ftx
 
                     using (var fileStream = file.OpenWrite())
                     {
-                        for (long i = 0; i < length; )
+                        for (long i = 0; i < length;)
                         {
                             var remaining = length - i;
                             var toRead = (int)Math.Min(remaining, bufferSize);

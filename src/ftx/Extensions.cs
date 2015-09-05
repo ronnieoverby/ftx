@@ -1,16 +1,27 @@
 ﻿using System;
-using System.Net;
-using CoreTechs.Common;
 
 namespace ftx
 {
     public static class Extensions
     {
-        public static IPEndPoint ToIpEndPoint(this DnsEndPoint dnsEndPoint)
+
+
+        public static byte[] SubArray(this byte[] source, int index, int length)
         {
-            if (dnsEndPoint == null) throw new ArgumentNullException("dnsEndPoint");
-            var address = Dns.GetHostAddresses(dnsEndPoint.Host).RandomElement();
-            return new IPEndPoint(address, dnsEndPoint.Port);
+            if (source == null) throw new ArgumentNullException(nameof(source));
+
+            var sub = new byte[length];
+            Array.Copy(source, index, sub, 0, length);
+            return sub;
+
         }
+
+        public static T Do<T>(this T obj, Action<T> action)
+        {
+            action(obj);
+            return obj;
+        }
+
+        public static TOut Get<TIn, TOut>(this TIn obj, Func<TIn, TOut> func) => func(obj);
     }
 }

@@ -12,7 +12,8 @@ namespace ftx
     {
         public ProgramMode ProgramMode { get; set; }
         public DirectoryInfo Directory { get; set; }
-        public DnsEndPoint EndPoint { get; set; }
+        public IPAddress Host { get; set; }
+        public int Port { get; set; }
         public CompressionLevel? Compression { get; set; }
         public string EncryptionPassword { get; set; }
 
@@ -22,10 +23,19 @@ namespace ftx
             {
                 ProgramMode = Parse(args, "mode", x => ParseEnum<ProgramMode>(x[1])),
                 Directory = Parse(args, "path", x => new DirectoryInfo(x[1])),
-                EndPoint = new DnsEndPoint(Parse(args, "host", x => x[1]), Parse(args, "port", x => int.Parse(x[1]))),
+                Host = Parse(args, "host", x =>
+                {
+                    var value = x.ElementAtOrDefault(1);
+                    return value == null ? IPAddress.Any : Dns.GetHostAddresses(value).RandomElement();
+                }),
+                Port = Parse(args,"port", x =>
+                {
+                    var value = x.ElementAtOrDefault(1);
+                    return value != null ? int.Parse(value) : 0;
+                }),
                 Compression = Parse(args, "compression", x =>
                 {
-                    if (!x.Any()) return (CompressionLevel?) null;
+                    if (!x.Any()) return (CompressionLevel?)null;
 
                     var level = x.ElementAtOrDefault(1);
                     return level.IsNullOrEmpty()
@@ -56,7 +66,7 @@ namespace ftx
 
             if (z != -1)
             {
-                values = values.Take(z-i);
+                values = values.Take(z - i);
             }
 
             try
