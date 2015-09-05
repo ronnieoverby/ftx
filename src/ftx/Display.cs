@@ -1,39 +1,55 @@
 ﻿using System;
+using System.Collections.Generic;
 using CoreTechs.Common;
+using Humanizer;
+using Humanizer.Bytes;
+using Humanizer.Localisation;
 using static System.Console;
+using ByteSize = Humanizer.Bytes.ByteSize;
 using Stopwatch = System.Diagnostics.Stopwatch;
 
 namespace ftx
 {
     internal class Display
     {
+        private const int MaxByteStamps = 1000;
         private DateTimeOffset _lastRefresh;
-        private readonly string _staticText;
-        private static readonly string NL = Environment.NewLine;
+        private readonly LinkedList<ByteStamp> _byteStamps = new LinkedList<ByteStamp>();
 
         public Display(ProgramOptions options)
         {
             Options = options;
-
-            /*  var mode = options.ProgramMode == ProgramMode.Server ? "Source" : "Destination";
-              string compression = $"Compression: {options.Compression?.ToString() ?? "None"}{NL}";
-              string encryption = $"Encryption: {(options.EncryptionPassword.IsNullOrEmpty() ? "Off" : "On")}{NL}";
-              _staticText =     + compression +
-                            encryption;*/
-
-            _staticText = "TODO";
         }
 
         public TimeSpan? Delay { get; set; }
         public FileProgress CurrentFile { get; set; }
         public int FileCount { get; set; }
-        public long ByteCount { get; set; }
+
+        public long ByteCount
+        {
+            get { return _byteStamps.Last?.Value.ByteCount ?? 0; }
+            set
+            {
+                _byteStamps.AddLast(new ByteStamp(value));
+                if (_byteStamps.Count > MaxByteStamps)
+                    _byteStamps.RemoveFirst();
+            }
+        }
+
         public Stopwatch Stopwatch { get; } = new Stopwatch();
         public ProgramOptions Options { get; }
 
-
-
-        public ByteSize BytesPerSecond => ByteSize.FromBytes((long)(ByteCount / Stopwatch.Elapsed.TotalSeconds));
+        public ByteSize BytesPerSecond
+        {
+            get
+            {
+                var last = _byteStamps.Last;
+                var first = _byteStamps.First;
+                var span = last.Value.DateTime - first.Value.DateTime;
+                var count = last.Value.ByteCount - first.Value.ByteCount;
+                return (count/span.TotalSeconds).Bytes();
+            }
+        }
 
         public void Refresh()
         {
@@ -42,15 +58,21 @@ namespace ftx
 
             Clear();
 
-            WriteLine($"Time Elapsed: {Stopwatch.Elapsed:g}");
-            WriteLine($"Bytes: {ByteCount:N}");
-            WriteLine($"Files: {FileCount:N}");
-            WriteLine($"Speed: {BytesPerSecond.Kilobytes:N} KB/Sec");
+            WriteLine($"Path: {Options.Directory.FullName}");
+            WriteLine($"Compression: {Options.Compression?.ToString() ?? "Off"}");
+            WriteLine($"Encryption: {(Options.EncryptionPassword.IsNullOrEmpty() ? "Off" : "On")}");
+            WriteLine($"Time: {Stopwatch.Elapsed.Humanize(minUnit: TimeUnit.Second)}");
+            WriteLine($"Bytes: {ByteCount.Bytes().Humanize("#.##")}");
+            WriteLine($"Files: {FileCount:N0}");
+            WriteLine($"Speed: {BytesPerSecond.Humanize("#.##")}/s");
 
             if (CurrentFile != null)
             {
-                WriteLine(CurrentFile.File.FullName);
-                WriteLine($"{CurrentFile.BytesSent:N} / {CurrentFile.File.Length:N} ({CurrentFile.PercentComplete:P})");
+                WriteLine();
+                WriteLine("Current File:");
+                WriteLine(CurrentFile.File);
+
+                WriteLine($"{CurrentFile.BytesTransferred:N0} / {CurrentFile.Length:N0} ({CurrentFile.PercentComplete:P})");
             }
 
             _lastRefresh = DateTimeOffset.Now;

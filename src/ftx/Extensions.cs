@@ -7,7 +7,7 @@ namespace ftx
     {
         public const int DefaultStreamCopyBufferSize = 81920;
 
-        public static long CopyTo(this Stream source, Stream destination, long count, byte[] buffer, IProgress<long> progress = null)
+        public static long CopyTo(this Stream source, Stream destination, long count, byte[] buffer, Action<long> progress = null)
         {
             if (source == null) throw new ArgumentNullException(nameof(source));
             if (destination == null) throw new ArgumentNullException(nameof(destination));
@@ -19,13 +19,13 @@ namespace ftx
                 var read = source.Read(buffer, 0, Math.Min(buffer.Length, n));
                 destination.Write(buffer, 0, read);
                 i += read;
-                progress?.Report(i);
+                progress?.Invoke(i);
             }
 
             return i;
 
         }
-        public static long CopyTo(this Stream source, Stream destination, long count, int bufferSize = DefaultStreamCopyBufferSize, IProgress<long> progress = null)
+        public static long CopyTo(this Stream source, Stream destination, long count, int bufferSize = DefaultStreamCopyBufferSize, Action<long> progress = null)
         {
             return CopyTo(source, destination, count, new byte[bufferSize], progress);
         }

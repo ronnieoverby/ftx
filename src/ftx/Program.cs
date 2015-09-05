@@ -27,7 +27,7 @@ namespace ftx
 
         private static void RunServer(ProgramOptions options)
         {
-            var display = new Display(options) {Delay = 1.Seconds()};
+            var display = new Display(options) { Delay = .5.Seconds() };
             var listener = new TcpListener(options.Host, options.Port);
             listener.Start();
             int port = ((dynamic)listener.LocalEndpoint).Port;
@@ -40,7 +40,7 @@ namespace ftx
 
                 var buffer = new byte[Extensions.DefaultStreamCopyBufferSize];
 
-                using (var it = new BufferedEnumerator<FileInfo>(files.GetEnumerator(), 1))
+                using (var it = files.GetEnumerator())
                 {
                     using (var client = listener.AcceptTcpClient())
                     using (var netStream = client.GetStream())
@@ -56,40 +56,30 @@ namespace ftx
                             : null)
                     using (var writer = new BinaryWriter(cryptoStream ?? (Stream)compStream ?? netStream))
                     {
+                        display.Stopwatch.Start();
                         while (it.MoveNext())
                         {
                             var file = it.Current;
-                            display.CurrentFile = new FileProgress(file)
-                                .Do(x => x.Stopwatch.Start());
+                            display.CurrentFile = new FileProgress(
+                                file.GetRelativePathFrom(options.Directory),
+                                file.Length).Do(x => x.Stopwatch.Start());
 
                             var path = file.GetRelativePathFrom(options.Directory);
-                            Console.WriteLine(path);
 
-                            try
-                            {
-                                writer.Write(path);
-                                writer.Write(file.Length);
+                            writer.Write(path);
+                            writer.Write(file.Length);
 
-                                using (var fileStream = file.OpenRead())
-                                    fileStream.CopyTo(writer.BaseStream, file.Length, buffer, new Progress<long>(
-                                        b =>
-                                        {
-                                            display.ByteCount += (display.CurrentFile.BytesSent = b);
-                                            display.Refresh();
-                                        }));
+                            using (var fileStream = file.OpenRead())
+                                fileStream.CopyTo(writer.BaseStream, file.Length, buffer,
+                                    b =>
+                                    {
+                                        display.ByteCount += (display.CurrentFile.BytesTransferred = b);
+                                        display.Refresh();
+                                    });
 
-                                display.FileCount++;
-                                display.Refresh();
-                            }
-                            catch (Exception ex)
-                            {
-                                if (!it.MovePrevious())
-                                    throw;
+                            display.FileCount++;
+                            display.Refresh();
 
-                                Console.WriteLine(ex);
-                                Console.WriteLine("Press enter to resume.");
-                                Console.ReadLine();
-                            }
                         }
                     }
                 }
@@ -103,6 +93,8 @@ namespace ftx
 
         private static void RunClient(ProgramOptions options)
         {
+            var display = new Display(options) { Delay = .5.Seconds() };
+
             using (var client = new TcpClient().Do(c => c.Connect(options.Host, options.Port)))
             using (var netStream = client.GetStream())
             using (var compStream = options.Compression.HasValue ? new DeflateStream(netStream, CompressionMode.Decompress) : null)
@@ -112,6 +104,8 @@ namespace ftx
             using (var reader = new BinaryReader(cryptoStream ?? (Stream)compStream ?? netStream))
             using (var nullStream = new NullStream())
             {
+                display.Stopwatch.Start();
+
                 var buffer = new byte[Extensions.DefaultStreamCopyBufferSize];
 
                 while (true)
@@ -126,14 +120,21 @@ namespace ftx
                         break;
                     }
 
-                    Console.WriteLine(path);
 
                     var length = reader.ReadInt64();
                     var file = options.Directory.GetFile(path);
 
+                    display.CurrentFile = new FileProgress(path, length).Do(x => x.Stopwatch.Start());
+
+                    Action<long> progress = b =>
+                    {
+                        display.ByteCount += (display.CurrentFile.BytesTransferred = b);
+                        display.Refresh();
+                    };
+
                     if (file.Exists && !options.Overwrite)
                     {
-                        reader.BaseStream.CopyTo(nullStream, length, buffer);
+                        reader.BaseStream.CopyTo(nullStream, length, buffer, progress);
                     }
                     else
                     {
@@ -141,8 +142,11 @@ namespace ftx
                             file.Directory.Create();
 
                         using (var fileStream = file.Open(FileMode.Create, FileAccess.Write, FileShare.None))
-                            reader.BaseStream.CopyTo(fileStream, length, buffer);
+                            reader.BaseStream.CopyTo(fileStream, length, buffer, progress);
                     }
+
+                    display.FileCount++;
+                    display.Refresh();
                 }
             }
         }
