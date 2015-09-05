@@ -16,6 +16,7 @@ namespace ftx
         public int Port { get; set; }
         public CompressionLevel? Compression { get; set; }
         public string EncryptionPassword { get; set; }
+        public bool Overwrite { get; set; }
 
         public static ProgramOptions FromArgs(string[] args)
         {
@@ -44,9 +45,22 @@ namespace ftx
                     : ParseEnum<CompressionLevel>(level);
             });
             options.EncryptionPassword = Parse(args, "password", x => x.Any() ? x[1] : null);
+            options.Overwrite = Parse(args, "overwrite", ParseBool);
             return options;
         }
 
+        private static bool ParseBool(string[] x)
+        {
+            switch (x.Length)
+            {
+                case 0:
+                    return false;
+                case 1:
+                    return true;
+                default:
+                    return bool.Parse(x[1]);
+            }
+        }
 
         private static T ParseEnum<T>(string s)
         {

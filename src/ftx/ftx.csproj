@@ -45,7 +45,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Display.cs" />
     <Compile Include="Extensions.cs" />
+    <Compile Include="FileProgress.cs" />
+    <Compile Include="NullStream.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="ProgramMode.cs" />
     <Compile Include="ProgramOptions.cs" />
