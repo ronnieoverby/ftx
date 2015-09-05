@@ -36,5 +36,9 @@ For those times when you need to transfer a pile o' files across a network easil
 
 `ftx -mode client -path d:\destination -host myserver -port 12345 -password "correct horse battery staple"`
 
+### Listen only on specific interface w/ randomly selected port
+
+`ftx -mode server -path c:\source -host 1.2.3.4`
+
 ## Todo
 - Resume
