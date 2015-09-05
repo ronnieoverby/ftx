@@ -1,6 +1,8 @@
 # ftx
 A file server/client.
 
+![Screenshot](/docs/screenshot.png?raw=true)
+
 ## Why?
 For those times when you need to transfer a pile o' files across a network easily and quickly.
 
