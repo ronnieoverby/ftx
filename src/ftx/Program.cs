@@ -27,9 +27,11 @@ namespace ftx
 
         private static void RunServer(ProgramOptions options)
         {
-            var display = new Display(options) {Delay = .5.Seconds()}.Do(x => x.Refresh());
+
             var listener = new TcpListener(options.Host, options.Port);
             listener.Start();
+            var display = new Display(options, listener.GetPort()) {Delay = .5.Seconds()};
+            display.Refresh();
 
             try
             {
@@ -44,6 +46,7 @@ namespace ftx
                     using (var compStream = options.Compression.HasValue
                             ? new DeflateStream(netStream, options.Compression.Value)
                             : null)
+                    using(var clearWriter = new BinaryWriter((Stream)compStream ?? netStream))
                     using (var aes = CreateAes(options))
                     using (var enc = aes?.CreateEncryptor())
                     using (var cryptoStream = aes != null
@@ -51,7 +54,11 @@ namespace ftx
                             : null)
                     using (var writer = new BinaryWriter(cryptoStream ?? (Stream)compStream ?? netStream))
                     {
+                        if (aes != null)
+                            clearWriter.Write(aes.IV);
+
                         display.Stopwatch.Start();
+
                         while (it.MoveNext())
                         {
                             var file = it.Current;
@@ -82,15 +89,35 @@ namespace ftx
                 listener.Stop();
             }
         }
+        
+        static byte[] ClientHandshake(Stream stream, ProgramOptions options)
+        {
+            if (!options.EncryptionEnabled) return null;
+
+            using (var aes = new AesCryptoServiceProvider())
+            {
+                // we are expecting the IV very first thing
+
+                var iv = new byte[aes.BlockSize/8];
+                var read = stream.Read(iv, 0, iv.Length);
+
+                if (read != iv.Length)
+                    throw new ApplicationException("Didn't get enough bytes for handshake.");
+
+                return iv;
+            }
+        }
 
         private static void RunClient(ProgramOptions options)
         {
-            var display = new Display(options) { Delay = .5.Seconds() };
+            var display = new Display(options, options.Port) {Delay = .5.Seconds()};
+
+            byte[] aesIV = null;
 
             using (var client = new TcpClient().Do(c => c.Connect(options.Host, options.Port)))
-            using (var netStream = client.GetStream())
+            using (var netStream = client.GetStream().Do(s => aesIV = ClientHandshake(s, options)))
             using (var compStream = options.Compression.HasValue ? new DeflateStream(netStream, CompressionMode.Decompress) : null)
-            using (var aes = CreateAes(options))
+            using (var aes = CreateAes(options, aesIV))
             using (var dec = aes?.CreateDecryptor())
             using (var cryptoStream = aes != null ? new CryptoStream((Stream)compStream ?? netStream, dec, CryptoStreamMode.Read) : null)
             using (var reader = new BinaryReader(cryptoStream ?? (Stream)compStream ?? netStream))
@@ -127,7 +154,6 @@ namespace ftx
                     };
 
                     var skipFile = (file.Exists && !options.Overwrite);
-                                   //|| options.ExcludedDirectories.Any(file.IsContainedWithin);
 
                     if (skipFile)
                     {
@@ -147,20 +173,28 @@ namespace ftx
             }
         }
 
-        private static Aes CreateAes(ProgramOptions options)
+        private static Aes CreateAes(ProgramOptions options, byte[] iv = null)
         {
-            if (options.EncryptionPassword.IsNullOrEmpty())
+            if (!options.EncryptionEnabled)
                 return null;
 
-            var salt = Convert.FromBase64String("38IxHAPayj+fEPTV6ON0AQ==");
+            var salt = Convert.FromBase64String("hkuDTnecxj+oDytliJ69BQ==");
             using (var kdf = new Rfc2898DeriveBytes(options.EncryptionPassword, salt))
             {
                 var aes = new AesCryptoServiceProvider();
-                var keyLength = aes.Key.Length;
-                var ivLength = aes.IV.Length;
-                var bytes = kdf.GetBytes(keyLength + ivLength);
-                aes.Key = bytes.SubArray(0, keyLength);
-                aes.IV = bytes.SubArray(keyLength, ivLength);
+                var keyLen = aes.KeySize/8;
+
+                if (iv != null)
+                {
+                    aes.Key = kdf.GetBytes(keyLen);
+                    aes.IV = iv;
+                    return aes;
+                }
+
+                var ivLength = aes.BlockSize/8;
+                var bytes = kdf.GetBytes(keyLen + ivLength);
+                aes.Key = bytes.SubArray(0, keyLen);
+                aes.IV = bytes.SubArray(keyLen, ivLength);
                 return aes;
             }
         }

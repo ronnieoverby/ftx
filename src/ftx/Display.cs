@@ -12,12 +12,14 @@ namespace ftx
 {
     internal class Display
     {
+        private readonly int _port;
         private const int MaxByteStamps = 1000;
         private DateTimeOffset _lastRefresh;
         private readonly LinkedList<ByteStamp> _byteStamps = new LinkedList<ByteStamp>();
 
-        public Display(ProgramOptions options)
+        public Display(ProgramOptions options, int port)
         {
+            _port = port;
             Options = options;
         }
 
@@ -63,7 +65,7 @@ namespace ftx
             Clear();
 
             WriteLine($"Mode:        {Options.ProgramMode}");
-            WriteLine($"Host/Port:   {Options.Host}:{Options.Port}");
+            WriteLine($"Host/Port:   {Options.Host}:{_port}");
             WriteLine($"Path:        {Options.Directory.FullName}");
 
             string compression;

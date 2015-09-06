@@ -19,6 +19,8 @@ namespace ftx
         public string EncryptionPassword { get; set; }
         public bool Overwrite { get; set; }
 
+        public bool EncryptionEnabled =>!EncryptionPassword.IsNullOrEmpty();
+
         public static ProgramOptions FromArgs(string[] args)
         {
             var options = new ProgramOptions();

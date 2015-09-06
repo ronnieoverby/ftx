@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net.Sockets;
 
 namespace ftx
 {
@@ -63,6 +64,11 @@ namespace ftx
             yield return di;
             foreach (var sub in di.EnumerateDirectories("*", SearchOption.AllDirectories))
                 yield return sub;
+        }
+
+        public static int GetPort(this TcpListener listener)
+        {
+            return ((dynamic) listener.LocalEndpoint).Port;
         }
     }
 }
