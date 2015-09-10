@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using CoreTechs.Common;
@@ -30,12 +32,11 @@ namespace ftx
 
             var listener = new TcpListener(options.Host, options.Port);
             listener.Start();
-            var display = new Display(options, listener.GetPort()) {Delay = .5.Seconds()};
+            var display = new Display(options, listener.GetPort()) { Delay = .5.Seconds() };
             display.Refresh();
 
             try
             {
-
                 var files = options.Directory.EnumerateFiles("*", SearchOption.AllDirectories);
                 var buffer = new byte[Extensions.DefaultStreamCopyBufferSize];
 
@@ -46,17 +47,15 @@ namespace ftx
                     using (var compStream = options.Compression.HasValue
                             ? new DeflateStream(netStream, options.Compression.Value)
                             : null)
-                    using(var clearWriter = new BinaryWriter((Stream)compStream ?? netStream))
-                    using (var aes = CreateAes(options))
+                    using (var clearReader = new BinaryReader( netStream))
+                    using (var clearWriter = new BinaryWriter(clearReader.BaseStream))
+                    using (var aes = CreateAesForServer(options, clearReader, clearWriter))
                     using (var enc = aes?.CreateEncryptor())
                     using (var cryptoStream = aes != null
-                            ? new CryptoStream((Stream)compStream ?? netStream, enc, CryptoStreamMode.Write)
+                            ? new CryptoStream((Stream) compStream ?? netStream, enc, CryptoStreamMode.Write)
                             : null)
                     using (var writer = new BinaryWriter(cryptoStream ?? (Stream)compStream ?? netStream))
                     {
-                        if (aes != null)
-                            clearWriter.Write(aes.IV);
-
                         display.Stopwatch.Start();
 
                         while (it.MoveNext())
@@ -89,37 +88,20 @@ namespace ftx
                 listener.Stop();
             }
         }
-        
-        static byte[] ClientHandshake(Stream stream, ProgramOptions options)
-        {
-            if (!options.EncryptionEnabled) return null;
-
-            using (var aes = new AesCryptoServiceProvider())
-            {
-                // we are expecting the IV very first thing
-
-                var iv = new byte[aes.BlockSize/8];
-                var read = stream.Read(iv, 0, iv.Length);
-
-                if (read != iv.Length)
-                    throw new ApplicationException("Didn't get enough bytes for handshake.");
-
-                return iv;
-            }
-        }
 
         private static void RunClient(ProgramOptions options)
         {
-            var display = new Display(options, options.Port) {Delay = .5.Seconds()};
+            var display = new Display(options, options.Port) { Delay = .5.Seconds() };
 
-            byte[] aesIV = null;
 
             using (var client = new TcpClient().Do(c => c.Connect(options.Host, options.Port)))
-            using (var netStream = client.GetStream().Do(s => aesIV = ClientHandshake(s, options)))
+            using (var netStream = client.GetStream())
             using (var compStream = options.Compression.HasValue ? new DeflateStream(netStream, CompressionMode.Decompress) : null)
-            using (var aes = CreateAes(options, aesIV))
+            using (var clearReader = new BinaryReader(netStream))
+            using (var clearWriter = new BinaryWriter(clearReader.BaseStream))
+            using (var aes = CreateAesForClient(options, clearReader, clearWriter))
             using (var dec = aes?.CreateDecryptor())
-            using (var cryptoStream = aes != null ? new CryptoStream((Stream)compStream ?? netStream, dec, CryptoStreamMode.Read) : null)
+            using (var cryptoStream = aes != null ? new CryptoStream((Stream) compStream ?? netStream, dec, CryptoStreamMode.Read) : null)
             using (var reader = new BinaryReader(cryptoStream ?? (Stream)compStream ?? netStream))
             using (var nullStream = new NullStream())
             {
@@ -140,7 +122,6 @@ namespace ftx
                     {
                         break;
                     }
-
 
                     var length = reader.ReadInt64();
                     var file = options.Directory.GetFile(path);
@@ -173,28 +154,73 @@ namespace ftx
             }
         }
 
-        private static Aes CreateAes(ProgramOptions options, byte[] iv = null)
+        private static Aes CreateAesForServer(ProgramOptions options, BinaryReader reader, BinaryWriter writer)
         {
-            if (!options.EncryptionEnabled)
+            if (!options.Encrypt) return null;
+
+
+            using (var ke = new ECDiffieHellmanCng())
+            {
+                // expecting client's public key
+
+                var len = reader.ReadInt32();
+                byte[] key;
+
+                using (var remotePubKey = CngKey.Import(reader.ReadBytes(len), CngKeyBlobFormat.EccPublicBlob))
+                    key = ke.DeriveKeyMaterial(remotePubKey);
+
+                var aes = new AesCryptoServiceProvider();
+                using (var kdf = new Rfc2898DeriveBytes(key, Salt.ToArray(), KdfIterations))
+                    aes.Key = kdf.GetBytes(aes.KeySize / 8);
+
+                // send pub key and IV to client
+                var localPubKey = ke.PublicKey.ToByteArray();
+                writer.Write(localPubKey.Length);
+                writer.Write(localPubKey);
+                writer.Write(aes.IV.Length);
+                writer.Write(aes.IV);
+
+                return aes;
+            }
+        }
+
+        private const int KdfIterations = 1000;
+
+        private static readonly ReadOnlyCollection<byte> Salt =
+            Array.AsReadOnly(Convert.FromBase64String("hkuDTnecxj+oDytliJ69BQ=="));
+
+        private static Aes CreateAesForClient(ProgramOptions options, BinaryReader reader, BinaryWriter writer)
+        {
+            if (!options.Encrypt)
                 return null;
 
-            var salt = Convert.FromBase64String("hkuDTnecxj+oDytliJ69BQ==");
-            using (var kdf = new Rfc2898DeriveBytes(options.EncryptionPassword, salt))
+
+            using (var ke = new ECDiffieHellmanCng())
             {
+               // send our public key
+
+                var localPubKey = ke.PublicKey.ToByteArray();
+                writer.Write(localPubKey.Length);
+                writer.Write(localPubKey);
+
                 var aes = new AesCryptoServiceProvider();
-                var keyLen = aes.KeySize/8;
 
-                if (iv != null)
-                {
-                    aes.Key = kdf.GetBytes(keyLen);
-                    aes.IV = iv;
-                    return aes;
-                }
+                // expecting server's public key
 
-                var ivLength = aes.BlockSize/8;
-                var bytes = kdf.GetBytes(keyLen + ivLength);
-                aes.Key = bytes.SubArray(0, keyLen);
-                aes.IV = bytes.SubArray(keyLen, ivLength);
+                var len = reader.ReadInt32();
+                byte[] key;
+
+                using (var remotePublicKey = CngKey.Import(reader.ReadBytes(len), CngKeyBlobFormat.EccPublicBlob))
+                    key = ke.DeriveKeyMaterial(remotePublicKey);
+
+                using (var kdf = new Rfc2898DeriveBytes(key, Salt.ToArray(), KdfIterations))
+                    aes.Key = kdf.GetBytes(aes.KeySize/8);
+
+                // expecting IV
+
+                len = reader.ReadInt32();
+                aes.IV = reader.ReadBytes(len);
+
                 return aes;
             }
         }
