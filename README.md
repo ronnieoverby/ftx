@@ -14,7 +14,7 @@ Moving files across the internet sucks. Especially if your moving a lot of files
 | `host`         | `some-host` \| `1.2.3.4` |  
 | `port`         | `12345`                  |  Server will choose a random port if not specified.
 | `compression`  | `Fastest` \| `Optimal`   | When using compression, the level is only needed on the server side.
-| `password`     | `Uncr@ckable`            | Enables traffic encryption.
+| `encrypt`      |                          | Enables traffic encryption.
 | `overwrite`    | `true` \| `false`        | Client side setting that prevents files from being overwritten. Defaults to false.
 
 ## Examples
@@ -33,9 +33,9 @@ Moving files across the internet sucks. Especially if your moving a lot of files
 
 ### Encryption
 
-`ftx -mode server -path c:\source -port 12345 -password "correct horse battery staple"`
+`ftx -mode server -path c:\source -port 12345 -encrypt`
 
-`ftx -mode client -path d:\destination -host myserver -port 12345 -password "correct horse battery staple"`
+`ftx -mode client -path d:\destination -host myserver -port 12345 -encrypt`
 
 ### Listen only on specific interface w/ randomly selected port
 
