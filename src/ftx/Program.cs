@@ -72,9 +72,10 @@ namespace ftx
 
                             using (var fileStream = file.OpenRead())
                                 fileStream.CopyTo(writer.BaseStream, file.Length, buffer,
-                                    b =>
+                                    pu =>
                                     {
-                                        display.ByteCount += (display.CurrentFile.BytesTransferred = b);
+                                        display.ByteCount += pu.SinceLastUpdate;
+                                        display.CurrentFile.BytesTransferred = pu.Total;
                                         display.Refresh();
                                     });
 
@@ -147,9 +148,10 @@ namespace ftx
 
                     display.CurrentFile = new FileProgress(path, length).Do(x => x.Stopwatch.Start());
 
-                    Action<long> progress = b =>
+                    Action<ProgressUpdate> progress = pu =>
                     {
-                        display.ByteCount += (display.CurrentFile.BytesTransferred = b);
+                        display.ByteCount += pu.SinceLastUpdate;
+                        display.CurrentFile.BytesTransferred = pu.Total;
                         display.Refresh();
                     };
 

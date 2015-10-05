@@ -57,6 +57,7 @@
     <Compile Include="Program.cs" />
     <Compile Include="ProgramMode.cs" />
     <Compile Include="ProgramOptions.cs" />
+    <Compile Include="ProgressUpdate.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
