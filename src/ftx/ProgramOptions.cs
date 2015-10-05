@@ -16,10 +16,8 @@ namespace ftx
         public IPAddress Host { get; set; }
         public int Port { get; set; }
         public CompressionLevel? Compression { get; set; }
-        public string EncryptionPassword { get; set; }
+        public bool Encrypt { get; set; }
         public bool Overwrite { get; set; }
-
-        public bool EncryptionEnabled =>!EncryptionPassword.IsNullOrEmpty();
 
         public static ProgramOptions FromArgs(string[] args)
         {
@@ -47,7 +45,7 @@ namespace ftx
                     ? CompressionLevel.Fastest
                     : ParseEnum<CompressionLevel>(level);
             });
-            options.EncryptionPassword = Parse(args, "password", x => x.Any() ? x[1] : null);
+            options.Encrypt = Parse(args, "encrypt", ParseBool);
             options.Overwrite = Parse(args, "overwrite", ParseBool);
         
             return options;

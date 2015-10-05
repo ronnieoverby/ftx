@@ -80,7 +80,7 @@ namespace ftx
             
 
             WriteLine($"Compression: {compression}");
-            WriteLine($"Encryption:  {(Options.EncryptionPassword.IsNullOrEmpty() ? "Disabled" : "Enabled")}");
+            WriteLine($"Encryption:  {(Options.Encrypt ? "Enabled" : "Disabled")}");
 
             if (Options.ProgramMode == ProgramMode.Client)
                 WriteLine($"Overwrite:   {(Options.Overwrite ? "Enabled" : "Disabled")}");
