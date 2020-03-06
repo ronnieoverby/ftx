@@ -3,7 +3,7 @@
 ![Screenshot](/docs/screenshot.png?raw=true)
 
 ## Why?
-Moving files across the internet sucks. Especially if your moving a lot of files.
+Existing file transfer protocols tools/protocols have significant overhead that can dramatically increase the total time taken to move many files. This tool aims to impose as little overhead as possible. I built it to move many, many millions of small image files from one hosting provider to another.
 
 ## Arguments
 
