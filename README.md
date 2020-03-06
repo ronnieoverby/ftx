@@ -6,7 +6,7 @@
 Existing file transfer protocols tools/protocols impose significant overhead that can dramatically increase the total time taken to move many files. This tool aims to have as little overhead as possible. I built this tool to move many, many millions of small image files from one hosting provider to another, without having to involve UPS/FedEx.
 
 ## How?
-Less features; less work! Once the transfer session is established, an uninteruppted, unidirectional stream sends the files to the client. The transfer protocol is completely static. The only protocol-level metadata transferred is the next files length. If the bulk of data being transferred responds well to compression, gzip can be enabled. Multiple client connections are not supported.
+Less features -> less work -> less time! The tool is intended for copying a directory structure to a new location. Synchronization and incremental updates are not      Once the transfer session is established, an uninteruppted, unidirectional stream sends the files to the client. The transfer protocol is completely static. The only protocol-level metadata transferred is the next files length. If the bulk of data being transferred responds well to compression, gzip can be enabled. Multiple client connections are not supported.
 
 ## Security?
 AES encryption can be enabled. Key exchange is facilitated by ECDH. You are on your own for integrity. The server endpoint is designed to be ephemeral; you set it up and you yourself connect the client to it. If you need additional security, there are many proxies available that can perform TLS termination/offloading (NGINX/STUNNEL to name a couple).
@@ -49,4 +49,8 @@ AES encryption can be enabled. Key exchange is facilitated by ECDH. You are on y
 
 ## Todo
 - Implement on .NET Core
+- Use newer c# language features
 - Resume support
+- Consider:
+    - pre-allocating target files
+    - security implications of transfer direction
