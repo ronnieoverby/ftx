@@ -3,7 +3,13 @@
 ![Screenshot](/docs/screenshot.png?raw=true)
 
 ## Why?
-Existing file transfer protocols tools/protocols have significant overhead that can dramatically increase the total time taken to move many files. This tool aims to impose as little overhead as possible. I built it to move many, many millions of small image files from one hosting provider to another.
+Existing file transfer protocols tools/protocols impose significant overhead that can dramatically increase the total time taken to move many files. This tool aims to have as little overhead as possible. I built this tool to move many, many millions of small image files from one hosting provider to another, without having to involve UPS/FedEx.
+
+## How?
+Less features; less work! Once the transfer session is established, an uninteruppted, unidirectional stream sends the files to the client. The transfer protocol is completely static. The only protocol-level metadata transferred is the next files length. If the bulk of data being transferred responds well to compression, gzip can be enabled. Multiple client connections are not supported.
+
+## Security?
+AES encryption can be enabled. Key exchange is facilitated by ECDH. You are on your own for integrity. The server endpoint is designed to be ephemeral; you set it up and you yourself connect the client to it. If you need additional security, there are many proxies available that can perform TLS termination/offloading (NGINX/STUNNEL to name a couple).
 
 ## Arguments
 
@@ -42,4 +48,5 @@ Existing file transfer protocols tools/protocols have significant overhead that 
 `ftx -mode server -path c:\source -host 1.2.3.4`
 
 ## Todo
-- Resume
+- Implement on .NET Core
+- Resume support
