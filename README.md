@@ -48,6 +48,7 @@ AES encryption can be enabled. Key exchange is facilitated by ECDH. You are on y
 `ftx -mode server -path c:\source -host 1.2.3.4`
 
 ## Todo
+- Seek out a security review
 - Implement on .NET Core
 - Use newer c# language features
 - Resume support
