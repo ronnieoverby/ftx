@@ -4,11 +4,10 @@ namespace ftx
 {
     public class FileProgress
     {
+        public Stopwatch Stopwatch { get; } = new Stopwatch();
         public string File { get;  }
         public long BytesTransferred { get; set; }
-        public Stopwatch Stopwatch { get; } = new Stopwatch();
         public long Length { get;  }
-
 
         public FileProgress(string file, long length)
         {

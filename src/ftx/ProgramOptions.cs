@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -51,23 +50,15 @@ namespace ftx
             return options;
         }
 
-        private static bool ParseBool(string[] x)
+        private static bool ParseBool(string[] x) => x.Length switch
         {
-            switch (x.Length)
-            {
-                case 0:
-                    return false;
-                case 1:
-                    return true;
-                default:
-                    return bool.Parse(x[1]);
-            }
-        }
+            0 => false,
+            1 => true,
+            _ => bool.Parse(x[1]),
+        };
 
-        private static T ParseEnum<T>(string s)
-        {
-            return (T) Enum.Parse(typeof (T), s, true);
-        }
+        private static T ParseEnum<T>(string s) =>
+            (T)Enum.Parse(typeof(T), s, true);
 
         private static T Parse<T>(string[] args, string token, Func<string[], T> func)
         {
@@ -80,11 +71,8 @@ namespace ftx
             var values = args.Skip(i);
 
             var z = Array.FindIndex(args, i + 1, s => Regex.IsMatch(s, @"^[/-]", RegexOptions.IgnoreCase));
-
             if (z != -1)
-            {
                 values = values.Take(z - i);
-            }
 
             try
             {
@@ -96,7 +84,6 @@ namespace ftx
                 Console.WriteLine(ex);
                 throw;
             }
-
         }
     }
 }
