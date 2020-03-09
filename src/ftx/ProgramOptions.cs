@@ -4,7 +4,6 @@ using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
-using CoreTechs.Common;
 
 namespace ftx
 {
@@ -40,7 +39,7 @@ namespace ftx
                 if (!x.Any()) return (CompressionLevel?)null;
 
                 var level = x.ElementAtOrDefault(1);
-                return level.IsNullOrEmpty()
+                return string.IsNullOrWhiteSpace(level)
                     ? CompressionLevel.Fastest
                     : ParseEnum<CompressionLevel>(level);
             });
