@@ -48,7 +48,6 @@ If encryption is enabled, the client and server will agree on a key through an E
 `ftx -mode server -path c:\source -host 1.2.3.4`
 
 ## Todo
-- Implement on .NET Core
 - Seek out a security review
 - Require `-encrypt` in either client/server arguments (currently required on both ends)
 - Resume support
