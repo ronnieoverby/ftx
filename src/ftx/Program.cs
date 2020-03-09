@@ -3,9 +3,9 @@ using SecurityDriven.Inferno.Extensions;
 using System;
 using System.IO;
 using System.IO.Compression;
-using System.Linq;
 using System.Net.Sockets;
 using System.Security.Cryptography;
+using static ftx.Extensions;
 
 namespace ftx
 {
@@ -30,8 +30,7 @@ namespace ftx
         private static void RunServer(ProgramOptions options)
         {
             var directoryPath = options.Directory.FullName;
-
-            if (!new[] { '\\', '/' }.Contains(directoryPath.Last()))
+            if(!Path.EndsInDirectorySeparator(directoryPath))
                 directoryPath += Path.DirectorySeparatorChar;
 
             var listener = new TcpListener(options.Host, options.Port);
@@ -41,7 +40,7 @@ namespace ftx
 
             try
             {
-                var buffer = new byte[Extensions.DefaultStreamCopyBufferSize];
+                var buffer = new byte[DefaultStreamCopyBufferSize];
 
                 using var client = listener.AcceptTcpClient();
                 using var netStream = client.GetStream();
@@ -63,7 +62,7 @@ namespace ftx
                 foreach (var file in options.Directory.EnumerateFiles("*", new EnumerationOptions
                 {
                     IgnoreInaccessible = true,
-                    RecurseSubdirectories = true,
+                    RecurseSubdirectories = true
                 }))
                 {
                     var fileRelPath = file.FullName.Substring(directoryPath.Length);
@@ -108,9 +107,9 @@ namespace ftx
             using var reader = new BinaryReader(cryptoStream ?? (Stream)compStream ?? netStream);
             display.Stopwatch.Start();
 
-            var buffer = new byte[Extensions.DefaultStreamCopyBufferSize];
+            var buffer = new byte[DefaultStreamCopyBufferSize];
 
-            while (true)
+            while (decryptor?.IsComplete != true)
             {
                 display.AttemptRefresh();
 
@@ -146,35 +145,22 @@ namespace ftx
 
                 display.FileCount++;
             }
-
         }
 
-        private static ICryptoTransform CreateServerEncryptor(BinaryReader reader, BinaryWriter writer)
+        private static EtM_EncryptTransform CreateServerEncryptor(BinaryReader reader, BinaryWriter writer)
         {
             using var key = CngKeyExtensions.CreateNewDhmKey();
-
-            // receive client's public key
             var remotePublicKey = reader.ReceivePublicKey();
-
-            // send server's public key
             writer.SendPublicKey(key);
-
-            // compute shared key
             var sharedKey = key.GetSharedDhmSecret(remotePublicKey);
             return new EtM_EncryptTransform(sharedKey);
         }
 
-        private static ICryptoTransform CreateClientDecryptor(BinaryReader reader, BinaryWriter writer)
+        private static EtM_DecryptTransform CreateClientDecryptor(BinaryReader reader, BinaryWriter writer)
         {
             using var key = CngKeyExtensions.CreateNewDhmKey();
-
-            // send client's public key
             writer.SendPublicKey(key);
-
-            // receive server's public key
             var remotePublicKey = reader.ReceivePublicKey();
-
-            // compute shared key
             var sharedKey = key.GetSharedDhmSecret(remotePublicKey);
             return new EtM_DecryptTransform(sharedKey);
         }
