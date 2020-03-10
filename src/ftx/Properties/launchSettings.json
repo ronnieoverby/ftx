@@ -1,8 +1,7 @@
 {
   "profiles": {
     "ftx": {
-      "commandName": "Project",
-      "commandLineArgs": "-mode server -path \"C:\\Users\\ronnie.overby\\Desktop\\yeetbop\" -port 62886 -compression -encrypt"
+      "commandName": "Project"
     }
   }
 }

@@ -1,8 +1,8 @@
-﻿using SecurityDriven.Inferno.Extensions;
+﻿using SecurityDriven.Inferno;
+using SecurityDriven.Inferno.Kdf;
 using System;
 using System.IO;
 using System.Net.Sockets;
-using System.Security.Cryptography;
 
 namespace ftx
 {
@@ -34,14 +34,11 @@ namespace ftx
         public static FileInfo GetFile(this DirectoryInfo directoryInfo, string relativeFilePath) =>
             new FileInfo(Path.Combine(directoryInfo.FullName, relativeFilePath));
 
-        public static void SendPublicKey(this BinaryWriter writer, CngKey key)
+        public static byte[] DeriveKey(this string pw, int length = 32)
         {
-            var publicKey = key.GetPublicBlob();
-            writer.Write(publicKey.Length);
-            writer.Write(publicKey);
+            var salt = Guid.Parse("74df2c3d-038a-48cd-99b9-223f97dce792").ToByteArray();
+            using var kdf = new PBKDF2(SuiteB.HmacFactory, pw, salt);
+            return kdf.GetBytes(length);
         }
-
-        public static CngKey ReceivePublicKey(this BinaryReader reader) =>
-            reader.ReadBytes(reader.ReadInt32()).ToPublicKeyFromBlob();
     }
 }

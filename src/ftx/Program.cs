@@ -1,5 +1,4 @@
 ﻿using SecurityDriven.Inferno;
-using SecurityDriven.Inferno.Extensions;
 using System;
 using System.IO;
 using System.IO.Compression;
@@ -11,6 +10,8 @@ namespace ftx
 {
     class Program
     {
+        static readonly TimeSpan _displayRefreshInterval = TimeSpan.FromSeconds(.5);
+
         static void Main(string[] args)
         {
             var options = ProgramOptions.FromArgs(args);
@@ -30,12 +31,12 @@ namespace ftx
         private static void RunServer(ProgramOptions options)
         {
             var directoryPath = options.Directory.FullName;
-            if(!Path.EndsInDirectorySeparator(directoryPath))
+            if (!Path.EndsInDirectorySeparator(directoryPath))
                 directoryPath += Path.DirectorySeparatorChar;
 
             var listener = new TcpListener(options.Host, options.Port);
             listener.Start();
-            var display = new Display(options, listener.GetPort()) { Delay = TimeSpan.FromSeconds(5) };
+            var display = new Display(options, listener.GetPort()) { Delay = _displayRefreshInterval };
             display.AttemptRefresh();
 
             try
@@ -47,10 +48,8 @@ namespace ftx
                 using var compStream = options.Compression.HasValue
                     ? new DeflateStream(netStream, options.Compression.Value)
                     : default;
-                using var clearReader = new BinaryReader(netStream);
-                using var clearWriter = new BinaryWriter(clearReader.BaseStream);
                 using var encryptor = options.Encrypt
-                    ? CreateServerEncryptor(clearReader, clearWriter)
+                    ? new EtM_EncryptTransform(options.PSK)
                     : default;
                 using var cryptoStream = encryptor != null
                     ? new CryptoStream((Stream)compStream ?? netStream, encryptor, CryptoStreamMode.Write)
@@ -96,10 +95,8 @@ namespace ftx
             using var compStream = options.Compression.HasValue
                 ? new DeflateStream(netStream, CompressionMode.Decompress)
                 : default;
-            using var clearReader = new BinaryReader(netStream);
-            using var clearWriter = new BinaryWriter(clearReader.BaseStream);
             using var decryptor = options.Encrypt
-                ? CreateClientDecryptor(clearReader, clearWriter)
+                ? new EtM_DecryptTransform(options.PSK)
                 : default;
             using var cryptoStream = decryptor != null
                 ? new CryptoStream((Stream)compStream ?? netStream, decryptor, CryptoStreamMode.Read)
@@ -145,24 +142,6 @@ namespace ftx
 
                 display.FileCount++;
             }
-        }
-
-        private static EtM_EncryptTransform CreateServerEncryptor(BinaryReader reader, BinaryWriter writer)
-        {
-            using var key = CngKeyExtensions.CreateNewDhmKey();
-            var remotePublicKey = reader.ReceivePublicKey();
-            writer.SendPublicKey(key);
-            var sharedKey = key.GetSharedDhmSecret(remotePublicKey);
-            return new EtM_EncryptTransform(sharedKey);
-        }
-
-        private static EtM_DecryptTransform CreateClientDecryptor(BinaryReader reader, BinaryWriter writer)
-        {
-            using var key = CngKeyExtensions.CreateNewDhmKey();
-            writer.SendPublicKey(key);
-            var remotePublicKey = reader.ReceivePublicKey();
-            var sharedKey = key.GetSharedDhmSecret(remotePublicKey);
-            return new EtM_DecryptTransform(sharedKey);
         }
     }
 }
