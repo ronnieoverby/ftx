@@ -4,7 +4,10 @@ using System.IO;
 using System.IO.Compression;
 using System.Net.Sockets;
 using System.Security.Cryptography;
+using System.Threading;
+using System.Threading.Tasks;
 using static ftx.Extensions;
+using DisplayQueue = ftx.ActionQueue<ftx.Display>;
 
 namespace ftx
 {
@@ -34,8 +37,10 @@ namespace ftx
 
             var listener = new TcpListener(options.Host, options.Port);
             listener.Start();
-            var display = new Display(options, listener.GetPort());
-            display.Refresh(observeDelay: false);
+            var display = new DisplayQueue(new Display(options, listener.GetPort()));
+            using var displayTask = display.ProcessQueue();
+            using var cts = new CancellationTokenSource();
+            var refreshTask = RefreshDisplay(display, cts.Token);
 
             try
             {
@@ -54,7 +59,7 @@ namespace ftx
                     : null;
                 using var writer = new BinaryWriter(cryptoStream ?? (Stream)compStream ?? netStream);
 
-                display.Stopwatch.Start();
+                display.Queue(d => d.Stopwatch.Start());
 
                 foreach (var file in options.Directory.EnumerateFiles("*", new EnumerationOptions
                 {
@@ -63,19 +68,27 @@ namespace ftx
                 }))
                 {
                     var fileRelPath = file.FullName.Substring(directoryPath.Length);
-                    display.CurrentFileProgress = new FileProgress(fileRelPath, file.Length);
+                    var fileProgress = new FileProgress(fileRelPath, file.Length);
+                    display.Queue(d => d.CurrentFileProgress = fileProgress);
 
                     writer.Write(fileRelPath);
                     writer.Write(file.Length);
 
+                    void UpdateProgress(long total, long delta) =>
+                        display.Queue(d => d.UpdateFileProgress(total, delta));
+
                     using (var fileStream = file.OpenRead())
-                        fileStream.CopyTo(writer.BaseStream, file.Length, buffer, display.UpdateFileProgress);
+                        fileStream.CopyTo(writer.BaseStream, file.Length, buffer, UpdateProgress);
 
-                    display.FileCount++;
-                    display.Refresh();
+                    display.Queue(d => d.FileCount++);
+                    //display.Queue(d => d.Refresh());
                 }
+                Console.Beep();
 
-                display.Refresh(observeDelay: false);
+                display.Queue(d => d.Refresh(/*false*/));
+                cts.Cancel();
+                display.Complete();
+                displayTask.Wait();
             }
             finally
             {
@@ -85,8 +98,11 @@ namespace ftx
 
         private static void RunClient(ProgramOptions options)
         {
-            var display = new Display(options, options.Port);
-            display.Refresh(observeDelay: false);
+            var display = new DisplayQueue(new Display(options, options.Port));
+            using var displayTask = display.ProcessQueue();
+            display.Queue(d => d.Refresh(/*false*/));
+            using var cts = new CancellationTokenSource();
+            var refreshTask = RefreshDisplay(display, cts.Token);
 
             using var client = new TcpClient();
             client.Connect(options.Host, options.Port);
@@ -102,13 +118,13 @@ namespace ftx
                 ? new CryptoStream((Stream)compStream ?? netStream, decryptor, CryptoStreamMode.Read)
                 : default;
             using var reader = new BinaryReader(cryptoStream ?? (Stream)compStream ?? netStream);
-            display.Stopwatch.Start();
+            display.Queue(d => d.Stopwatch.Start());
 
             var buffer = new byte[DefaultStreamCopyBufferSize];
 
             while (decryptor?.IsComplete != true)
             {
-                display.Refresh();
+                //display.Queue(d => d.Refresh());
 
                 string path;
                 try
@@ -122,13 +138,17 @@ namespace ftx
 
                 var length = reader.ReadInt64();
                 var file = options.Directory.GetFile(path);
+                var fileProgress = new FileProgress(path, length);
+                display.Queue(d => d.CurrentFileProgress = fileProgress);
 
-                display.CurrentFileProgress = new FileProgress(path, length);
+
+                void UpdateProgress(long total, long delta) =>
+                    display.Queue(d => d.UpdateFileProgress(total, delta));
 
                 var skipFile = file.Exists && !options.Overwrite;
                 if (skipFile)
                 {
-                    reader.BaseStream.CopyTo(Stream.Null, length, buffer, display.UpdateFileProgress);
+                    reader.BaseStream.CopyTo(Stream.Null, length, buffer, UpdateProgress);
                 }
                 else
                 {
@@ -137,13 +157,28 @@ namespace ftx
 
                     using var fileStream = file.Open(FileMode.Create, FileAccess.Write, FileShare.None);
                     fileStream.SetLength(length);
-                    reader.BaseStream.CopyTo(fileStream, length, buffer, display.UpdateFileProgress);
+                    reader.BaseStream.CopyTo(fileStream, length, buffer, UpdateProgress);
                 }
 
-                display.FileCount++;
+                display.Queue(d => d.FileCount++);
             }
 
-            display.Refresh(observeDelay: false);
+            Console.Beep();
+            
+            display.Queue(d => d.Refresh(/*false*/));
+            cts.Cancel();
+            display.Complete();
+            displayTask.Wait();
         }
+
+        static Task RefreshDisplay(DisplayQueue display, CancellationToken cancellationToken) =>
+            Task.Run(async () =>
+            {
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    display.Queue(d => d.Refresh(), cancellationToken);
+                    await Task.Delay(500, cancellationToken);
+                }
+            }, cancellationToken);
     }
 }

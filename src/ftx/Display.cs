@@ -12,9 +12,9 @@ namespace ftx
     {
         private const int _maxStamps = 100;
         private readonly TimeSpan _stampDelay = TimeSpan.FromSeconds(.1);
-        private readonly TimeSpan _refreshDelay = TimeSpan.FromSeconds(.5);
+        //private readonly TimeSpan _refreshDelay = TimeSpan.FromSeconds(.5);
         private readonly int _port;
-        private readonly Stopwatch _displayWatch = Stopwatch.StartNew();
+        //private readonly Stopwatch _displayWatch = Stopwatch.StartNew();
         private readonly Stopwatch _stampWatch = Stopwatch.StartNew();
         private readonly LinkedList<(long ByteCount, DateTimeOffset Time)> _stamps =
             new LinkedList<(long, DateTimeOffset)>();
@@ -78,10 +78,10 @@ namespace ftx
             }
         }
 
-        public void Refresh(in bool observeDelay = true)
+        public void Refresh(/*in bool observeDelay = true*/)
         {
-            if (observeDelay && _displayWatch.Elapsed < _refreshDelay)
-                return;
+            //if (observeDelay && _displayWatch.Elapsed < _refreshDelay)
+            //    return;
 
             Clear();
 
@@ -121,14 +121,12 @@ namespace ftx
                     $"{CurrentFileProgress.BytesTransferred.Bytes().Humanize("#.###")} / {CurrentFileProgress.Length.Bytes().Humanize("#.###")} ({CurrentFileProgress.PercentComplete:P})");
             }
 
-            _displayWatch.Restart();
         }
 
         public void UpdateFileProgress(in long totalBytes, in long deltaBytes)
         {
             ByteCount += deltaBytes;
             CurrentFileProgress.BytesTransferred = totalBytes;
-            Refresh();
         }
     }
 }

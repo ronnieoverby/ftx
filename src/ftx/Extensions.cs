@@ -6,7 +6,7 @@ using System.Net.Sockets;
 
 namespace ftx
 {
-    public delegate void UpdateFileProgress(in long totalBytes, in long deltaBytes);
+    public delegate void UpdateFileProgress( long totalBytes,  long deltaBytes);
 
     public static class Extensions
     {
