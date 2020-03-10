@@ -37,14 +37,23 @@ namespace ftx
              });
             options.Compression = Parse(args, "compression", x =>
             {
-                if (!x.Any()) return (CompressionLevel?)null;
+                if (!x.Any()) 
+                    return default(CompressionLevel?);
 
                 var level = x.ElementAtOrDefault(1);
                 return string.IsNullOrWhiteSpace(level)
                     ? CompressionLevel.Fastest
                     : ParseEnum<CompressionLevel>(level);
             });
-            options.PSK = Parse(args, "psk", x => x.ElementAtOrDefault(1).DeriveKey());
+
+            options.PSK = Parse(args, "psk", x => 
+            {
+                if (!x.Any()) 
+                    return default;
+
+                return x.ElementAtOrDefault(1).DeriveKey();
+            });
+
             options.Overwrite = Parse(args, "overwrite", ParseBool);
 
             return options;

@@ -6,11 +6,13 @@ using System.Net.Sockets;
 
 namespace ftx
 {
+    public delegate void UpdateFileProgress(in long totalBytes, in long deltaBytes);
+
     public static class Extensions
     {
         public const int DefaultStreamCopyBufferSize = 81920;
 
-        public static long CopyTo(this Stream source, Stream destination, long count, byte[] buffer, Action<(long total, long sinceLastUpdate)> progress = null)
+        public static long CopyTo(this Stream source, Stream destination, long count, byte[] buffer, UpdateFileProgress updateProgress)
         {
             if (source == null) throw new ArgumentNullException(nameof(source));
             if (destination == null) throw new ArgumentNullException(nameof(destination));
@@ -22,7 +24,7 @@ namespace ftx
                 var read = source.Read(buffer, 0, Math.Min(buffer.Length, n));
                 destination.Write(buffer, 0, read);
                 i += read;
-                progress?.Invoke((i, read));
+                updateProgress(i, read);
             }
 
             return i;

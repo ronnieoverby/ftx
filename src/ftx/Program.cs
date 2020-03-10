@@ -10,8 +10,6 @@ namespace ftx
 {
     class Program
     {
-        static readonly TimeSpan _displayRefreshInterval = TimeSpan.FromSeconds(.5);
-
         static void Main(string[] args)
         {
             var options = ProgramOptions.FromArgs(args);
@@ -36,8 +34,8 @@ namespace ftx
 
             var listener = new TcpListener(options.Host, options.Port);
             listener.Start();
-            var display = new Display(options, listener.GetPort()) { Delay = _displayRefreshInterval };
-            display.AttemptRefresh();
+            var display = new Display(options, listener.GetPort());
+            display.Refresh(observeDelay: false);
 
             try
             {
@@ -66,17 +64,18 @@ namespace ftx
                 {
                     var fileRelPath = file.FullName.Substring(directoryPath.Length);
                     display.CurrentFileProgress = new FileProgress(fileRelPath, file.Length);
-                    display.CurrentFileProgress.Stopwatch.Start();
 
                     writer.Write(fileRelPath);
                     writer.Write(file.Length);
 
                     using (var fileStream = file.OpenRead())
-                        fileStream.CopyTo(writer.BaseStream, file.Length, buffer, display.UpdateProgress);
+                        fileStream.CopyTo(writer.BaseStream, file.Length, buffer, display.UpdateFileProgress);
 
                     display.FileCount++;
-                    display.AttemptRefresh();
+                    display.Refresh();
                 }
+
+                display.Refresh(observeDelay: false);
             }
             finally
             {
@@ -86,7 +85,8 @@ namespace ftx
 
         private static void RunClient(ProgramOptions options)
         {
-            var display = new Display(options, options.Port) { Delay = TimeSpan.FromSeconds(5) };
+            var display = new Display(options, options.Port);
+            display.Refresh(observeDelay: false);
 
             using var client = new TcpClient();
             client.Connect(options.Host, options.Port);
@@ -108,7 +108,7 @@ namespace ftx
 
             while (decryptor?.IsComplete != true)
             {
-                display.AttemptRefresh();
+                display.Refresh();
 
                 string path;
                 try
@@ -124,12 +124,11 @@ namespace ftx
                 var file = options.Directory.GetFile(path);
 
                 display.CurrentFileProgress = new FileProgress(path, length);
-                display.CurrentFileProgress.Stopwatch.Start();
 
                 var skipFile = file.Exists && !options.Overwrite;
                 if (skipFile)
                 {
-                    reader.BaseStream.CopyTo(Stream.Null, length, buffer, display.UpdateProgress);
+                    reader.BaseStream.CopyTo(Stream.Null, length, buffer, display.UpdateFileProgress);
                 }
                 else
                 {
@@ -137,11 +136,14 @@ namespace ftx
                         file.Directory.Create();
 
                     using var fileStream = file.Open(FileMode.Create, FileAccess.Write, FileShare.None);
-                    reader.BaseStream.CopyTo(fileStream, length, buffer, display.UpdateProgress);
+                    fileStream.SetLength(length);
+                    reader.BaseStream.CopyTo(fileStream, length, buffer, display.UpdateFileProgress);
                 }
 
                 display.FileCount++;
             }
+
+            display.Refresh(observeDelay: false);
         }
     }
 }
