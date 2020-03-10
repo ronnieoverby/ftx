@@ -1,10 +1,11 @@
-﻿using System;
+﻿using SecurityDriven.Inferno;
+using SecurityDriven.Inferno.Kdf;
+using System;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
-using CoreTechs.Common;
 
 namespace ftx
 {
@@ -15,7 +16,8 @@ namespace ftx
         public IPAddress Host { get; set; }
         public int Port { get; set; }
         public CompressionLevel? Compression { get; set; }
-        public bool Encrypt { get; set; }
+        public bool Encrypt => PSK?.Length > 0;
+        public byte[] PSK { get; set; }
         public bool Overwrite { get; set; }
 
         public static ProgramOptions FromArgs(string[] args)
@@ -30,23 +32,23 @@ namespace ftx
                     ? (options.ProgramMode == ProgramMode.Server ? IPAddress.Any : IPAddress.Loopback)
                     : Dns.GetHostAddresses(value)[0];
             });
-            options.Port = Parse(args,"port", x =>
-            {
-                var value = x.ElementAtOrDefault(1);
-                return value != null ? int.Parse(value) : 0;
-            });
+            options.Port = Parse(args, "port", x =>
+             {
+                 var value = x.ElementAtOrDefault(1);
+                 return value != null ? int.Parse(value) : 0;
+             });
             options.Compression = Parse(args, "compression", x =>
             {
                 if (!x.Any()) return (CompressionLevel?)null;
 
                 var level = x.ElementAtOrDefault(1);
-                return level.IsNullOrEmpty()
+                return string.IsNullOrWhiteSpace(level)
                     ? CompressionLevel.Fastest
                     : ParseEnum<CompressionLevel>(level);
             });
-            options.Encrypt = Parse(args, "encrypt", ParseBool);
+            options.PSK = Parse(args, "psk", x => x.ElementAtOrDefault(1).DeriveKey());
             options.Overwrite = Parse(args, "overwrite", ParseBool);
-        
+
             return options;
         }
 
