@@ -50,7 +50,8 @@ Encryption can be enabled by providing a pre-shared key. PBKDF2 is used to deriv
 ## Todo
 - Seek out a security review
 - Resume support
-- Use Microsoft's arg parsing
-- Consider:
-    - pre-allocating target files
-    - enhancing security w/ alternate AES modes
+    - send client journal to server
+- Use Microsoft's arg parsing (it documents the CLI)
+- Consider:    
+    - multiple concurrent streams
+    - UDP
