@@ -49,6 +49,8 @@ Encryption can be enabled by providing a pre-shared key. PBKDF2 is used to deriv
 
 ## Todo
 - Seek out a security review
+- PSK for authentication and/or encryption
+    - maybe use PSK as a salt during key exchange? (avoid sending PSK over wire)
 - Resume support
     - send client journal to server
 - Use Microsoft's arg parsing (it documents the CLI)
