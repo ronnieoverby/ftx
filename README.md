@@ -55,3 +55,4 @@ Encryption can be enabled by providing a pre-shared key. PBKDF2 is used to deriv
 - Consider:    
     - multiple concurrent streams
 - Server informs client of compression setting
+- Connection fault tolerance
