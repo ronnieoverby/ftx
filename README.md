@@ -54,4 +54,3 @@ Encryption can be enabled by providing a pre-shared key. PBKDF2 is used to deriv
 - Use Microsoft's arg parsing (it documents the CLI)
 - Consider:    
     - multiple concurrent streams
-    - UDP
