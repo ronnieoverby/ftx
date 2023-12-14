@@ -4,29 +4,32 @@ using System.IO;
 using System.IO.Compression;
 using System.Net.Sockets;
 using System.Security.Cryptography;
+using System.Threading.Channels;
+using System.Threading.Tasks;
 using static ftx.Extensions;
 
 namespace ftx;
 
-class Program
+public static class Program
 {
-    static void Main(string[] args)
+    public static Task Main(string[] args)
     {
         var options = ProgramOptions.FromArgs(args);
         switch (options.ProgramMode)
         {
             case ProgramMode.Server:
-                RunServer(options);
-                break;
+                return RunServer(options);
             case ProgramMode.Client:
                 RunClient(options);
                 break;
             default:
                 throw new ArgumentOutOfRangeException();
         }
+
+        return Task.CompletedTask;
     }
 
-    private static void RunServer(ProgramOptions options)
+    private static async Task RunServer(ProgramOptions options)
     {
         var directoryPath = options.Directory.FullName;
         if (!Path.EndsInDirectorySeparator(directoryPath))
@@ -41,36 +44,54 @@ class Program
         {
             var buffer = new byte[DefaultStreamCopyBufferSize];
 
-            using var client = listener.AcceptTcpClient();
-            using var netStream = client.GetStream();
-            using var compStream = options.Compression.HasValue
+            using var client = await listener.AcceptTcpClientAsync();
+            await using var netStream = client.GetStream();
+            await using var compStream = options.Compression.HasValue
                 ? new DeflateStream(netStream, options.Compression.Value)
                 : default;
             using var encryptor = options.Encrypt
                 ? new EtM_EncryptTransform(options.PSK)
                 : default;
-            using var cryptoStream = encryptor != null
+            await using var cryptoStream = encryptor != null
                 ? new CryptoStream((Stream)compStream ?? netStream, encryptor, CryptoStreamMode.Write)
                 : null;
-            using var writer = new BinaryWriter(cryptoStream ?? (Stream)compStream ?? netStream);
+            await using var writer = new BinaryWriter(cryptoStream ?? (Stream)compStream ?? netStream);
 
             display.Stopwatch.Start();
 
-            foreach (var file in options.Directory.EnumerateFiles("*", new EnumerationOptions
-                     {
-                         IgnoreInaccessible = true,
-                         RecurseSubdirectories = true
-                     }))
+            var fileChannel = Channel.CreateBounded<(FileInfo File, FileStream Stream)>(new BoundedChannelOptions(33)
+                { SingleReader = true, SingleWriter = true });
+
+            var fileProducer = Task.Run(async () =>
             {
-                var fileRelPath = file.FullName.Substring(directoryPath.Length);
+                try
+                {
+                    foreach (var file in options.Directory.EnumerateFiles("*", new EnumerationOptions
+                             {
+                                 IgnoreInaccessible = true,
+                                 RecurseSubdirectories = true
+                             }))
+                    {
+                        var stream = file.OpenRead();
+                        await fileChannel.Writer.WriteAsync((file, stream));
+                    }
+                }
+                finally
+                {
+                    fileChannel.Writer.TryComplete();
+                }
+            });
+
+            await foreach (var (file, fileStream) in fileChannel.Reader.ReadAllAsync())
+            {
+                await using var _ = fileStream;
+                
+                var fileRelPath = file.FullName[directoryPath.Length..];
                 display.CurrentFileProgress = new FileProgress(fileRelPath, file.Length);
 
                 writer.Write(fileRelPath);
                 writer.Write(file.Length);
-
-                using (var fileStream = file.OpenRead())
-                    fileStream.CopyTo(writer.BaseStream, file.Length, buffer, display.UpdateFileProgress);
-
+                fileStream.CopyTo(writer.BaseStream, file.Length, buffer, display.UpdateFileProgress);
                 display.FileCount++;
                 display.Refresh();
             }
