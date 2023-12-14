@@ -1,20 +1,10 @@
-﻿using System.Diagnostics;
+﻿namespace ftx;
 
-namespace ftx
+public class FileProgress(string file, long length)
 {
-    public class FileProgress
-    {
-        public Stopwatch Stopwatch { get; } = Stopwatch.StartNew();
-        public string File { get;  }
-        public long BytesTransferred { get; set; }
-        public long Length { get;  }
+    public string File { get;  } = file;
+    public long BytesTransferred { get; set; }
+    public long Length { get;  } = length;
 
-        public FileProgress(string file, long length)
-        {
-            File = file;
-            Length = length;
-        }
-
-        public double PercentComplete =>(double) BytesTransferred/Length;
-    }
+    public double PercentComplete =>(double) BytesTransferred/Length;
 }

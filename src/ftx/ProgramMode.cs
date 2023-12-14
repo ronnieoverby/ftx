@@ -1,8 +1,7 @@
-﻿namespace ftx
+﻿namespace ftx;
+
+public enum ProgramMode
 {
-    public enum ProgramMode
-    {
-        Server,
-        Client
-    }
+    Server,
+    Client
 }
